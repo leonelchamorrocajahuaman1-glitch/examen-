@@ -1,0 +1,28 @@
+{
+  "name": "neon-liquor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NEON LIQUOR \u2014 tienda online de bebidas premium con panel de administraci\u00f3n",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c magenta,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w server && npm run build -w client",
+    "start": "npm run start -w server",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
+    "db:up": "docker compose up -d db",
+    "db:migrate": "npm run db:migrate -w server",
+    "db:deploy": "npm run db:deploy -w server",
+    "db:seed": "npm run db:seed -w server",
+    "db:studio": "npm run db:studio -w server",
+    "setup": "npm install && npm run db:deploy && npm run db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.5"
+  }
+}

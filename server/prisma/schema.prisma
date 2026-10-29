@@ -1,0 +1,298 @@
+// NEON LIQUOR — modelo de datos
+// Los importes se guardan en céntimos (Int) para evitar errores de redondeo con decimales.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING // Recibido, pendiente de confirmación
+  CONFIRMED // Confirmado por la tienda
+  PREPARING // En preparación
+  SHIPPED // En camino / listo para recojo
+  DELIVERED // Entregado
+  CANCELLED // Cancelado
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY // Pago contra entrega (efectivo o POS)
+  BANK_TRANSFER // Transferencia / Yape / Plin con verificación manual
+  TEST // Modo de prueba: no se cobra nada
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  TEST_APPROVED // Aprobado en modo de prueba, sin cobro real
+  FAILED
+  REFUNDED
+}
+
+enum DeliveryMethod {
+  STANDARD
+  EXPRESS
+  PICKUP
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+enum BottleShape {
+  CLASSIC
+  SQUARE
+  TALL
+  ROUND
+  WINE
+  CHAMPAGNE
+  CAN
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  documentId   String?
+  birthDate    DateTime  @db.Date
+  role         Role      @default(CUSTOMER)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions    Session[]
+  resetTokens PasswordResetToken[]
+  addresses   Address[]
+  orders      Order[]
+  favorites   Favorite[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  recipient String
+  phone     String
+  line1     String
+  line2     String?
+  district  String
+  city      String
+  region    String
+  reference String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  accentColor String    @default("#8B5CF6")
+  isAlcoholic Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Brand {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  country     String?
+  description String?
+  isPremium   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id               String      @id @default(cuid())
+  slug             String      @unique
+  name             String
+  brandId          String
+  brand            Brand       @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  categoryId       String
+  category         Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  shortDescription String
+  description      String
+  presentation     String
+  volumeMl         Int
+  abv              Decimal?    @db.Decimal(4, 1)
+  origin           String?
+  tastingNotes     String[]
+  priceCents       Int
+  salePriceCents   Int?
+  stock            Int         @default(0)
+  isActive         Boolean     @default(true)
+  isFeatured       Boolean     @default(false)
+  soldCount        Int         @default(0)
+  accentColor      String      @default("#8B5CF6")
+  bottleShape      BottleShape @default(CLASSIC)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  images     ProductImage[]
+  orderItems OrderItem[]
+  favorites  Favorite[]
+
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([isActive, createdAt])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+model Favorite {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, productId])
+}
+
+model Coupon {
+  id               String     @id @default(cuid())
+  code             String     @unique
+  description      String?
+  type             CouponType
+  // PERCENT: porcentaje (1–100). FIXED: monto en céntimos.
+  value            Int
+  minSubtotalCents Int        @default(0)
+  maxUses          Int?
+  usedCount        Int        @default(0)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  orders           Order[]
+}
+
+model Order {
+  id               String         @id @default(cuid())
+  number           Int            @unique @default(autoincrement())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status           OrderStatus    @default(PENDING)
+  paymentMethod    PaymentMethod
+  paymentStatus    PaymentStatus  @default(PENDING)
+  deliveryMethod   DeliveryMethod
+  subtotalCents    Int
+  discountCents    Int            @default(0)
+  shippingCents    Int
+  totalCents       Int
+  couponId         String?
+  coupon           Coupon?        @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  couponCode       String?
+  customerName     String
+  customerEmail    String
+  customerPhone    String
+  customerDocument String?
+  shipRecipient    String?
+  shipPhone        String?
+  shipLine1        String?
+  shipLine2        String?
+  shipDistrict     String?
+  shipCity         String?
+  shipRegion       String?
+  shipReference    String?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  items  OrderItem[]
+  events OrderEvent[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName    String
+  brandName      String
+  volumeMl       Int
+  unitPriceCents Int
+  quantity       Int
+  lineTotalCents Int
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderEvent {
+  id          String      @id @default(cuid())
+  orderId     String
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status      OrderStatus
+  note        String?
+  createdById String?
+  createdAt   DateTime    @default(now())
+
+  @@index([orderId])
+}
