@@ -78,14 +78,32 @@ echo  contrasena: solo se muestra una vez.
 echo -----------------------------------------------------------------
 pause
 
-rem --- 7. Iniciar ---
+rem --- 7. Compilar e iniciar en http://localhost ---
 echo.
-echo Iniciando la tienda. NO cierres esta ventana mientras la uses.
-echo   Tienda: http://localhost:5173
-echo   Panel:  http://localhost:5173/admin
+echo Compilando la tienda...
+call npm run build
+if errorlevel 1 goto :fail
+
+rem Se usa el puerto 80 (http://localhost). Si esta ocupado, el 4000.
+set PORT=80
+netstat -ano | findstr /c:"0.0.0.0:80 " /c:"[::]:80 " /c:"127.0.0.1:80 " >nul
+if not errorlevel 1 set PORT=4000
+set URL=http://localhost
+if not "!PORT!"=="80" set URL=http://localhost:!PORT!
+set NODE_ENV=production
+set APP_URL=!URL!
+set COOKIE_SECURE=false
+
 echo.
-start "" cmd /c "timeout /t 8 /nobreak >nul & start http://localhost:5173"
-call npm run dev
+echo ===============================================
+echo   Tienda: !URL!
+echo   Panel:  !URL!/admin
+echo   NO cierres esta ventana mientras uses la tienda.
+echo ===============================================
+echo.
+start "" cmd /c "timeout /t 5 /nobreak >nul & start !URL!"
+call npm start
+if errorlevel 1 goto :fail
 goto :eof
 
 :nonode

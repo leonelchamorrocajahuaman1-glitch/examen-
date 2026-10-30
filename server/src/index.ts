@@ -1,3 +1,4 @@
+import { createServer } from 'node:http';
 import { config } from './config/env.js';
 import { createApp } from './app.js';
 import { prisma } from './lib/prisma.js';
@@ -15,8 +16,20 @@ async function main() {
   }
 
   const app = createApp();
-  const server = app.listen(config.PORT, () => {
-    console.log(`\n⚡ NEON LIQUOR API escuchando en http://localhost:${config.PORT}`);
+  const server = createServer(app);
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE' || err.code === 'EACCES') {
+      console.error(`\n❌ No se puede usar el puerto ${config.PORT}: ${err.code === 'EADDRINUSE' ? 'otro programa ya lo está usando' : 'no hay permisos'}.`);
+      console.error('   Cambia PORT en server/.env o cierra el programa que lo ocupa.\n');
+    } else {
+      console.error(err);
+    }
+    process.exit(1);
+  });
+  server.listen(config.PORT, () => {
+    const url = `http://localhost${config.PORT === 80 ? '' : `:${config.PORT}`}`;
+    console.log(`\n⚡ NEON LIQUOR escuchando en ${url}`);
+    if (config.isProd) console.log(`   Tienda: ${url}   ·   Panel: ${url}/admin`);
     console.log(`   Pagos de prueba: ${config.PAYMENTS_TEST_MODE ? 'ACTIVADOS (sin cobros reales)' : 'desactivados'}`);
     console.log(`   Correo: ${config.smtpEnabled ? `SMTP ${config.SMTP_HOST}` : 'sin SMTP (los correos se muestran en esta consola)'}\n`);
   });

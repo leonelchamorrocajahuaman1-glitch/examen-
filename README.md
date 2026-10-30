@@ -51,7 +51,7 @@ Tienda online de bebidas alcohólicas con estética futurista: catálogo con fil
 2. Descarga el proyecto: en GitHub, botón **Code → Download ZIP** sobre esta rama. Descomprímelo en una carpeta **sin espacios ni tildes**, por ejemplo `C:\neon-liquor`.
 3. Haz doble clic en **`iniciar-windows.bat`**.
 
-El script comprueba Node y Docker, instala las dependencias, crea `server\.env`, enciende PostgreSQL, crea las tablas, carga los datos, inicia la tienda y abre el navegador. Si algo falla, te dice en qué paso. **No cierres esa ventana** mientras uses la tienda: es el servidor.
+El script comprueba Node y Docker, instala las dependencias, crea `server\.env`, enciende PostgreSQL, crea las tablas, carga los datos, compila la tienda y la abre en **http://localhost** (panel en **http://localhost/admin**). Si el puerto 80 está ocupado, usa http://localhost:4000. Si algo falla, te dice en qué paso. **No cierres esa ventana** mientras uses la tienda: es el servidor.
 
 > La primera vez, si dejaste `ADMIN_PASSWORD` vacío, la contraseña del administrador aparece **una sola vez** en esa ventana. Anótala.
 
